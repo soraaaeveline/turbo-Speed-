@@ -1,1 +1,85 @@
-
+name: Build APK
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Create Project Files
+        run: |
+          mkdir -p app/src/main/java/com/stresstest app/src/main/res/values app/src/main/res/drawable app/src/main/res/raw
+          
+          if [ -f "icon.png" ]; then cp icon.png app/src/main/res/drawable/ic_launcher.png; fi
+          if [ -f "splash_image.png" ]; then cp splash_image.png app/src/main/res/drawable/splash_image.png; fi
+          if [ -f "video1.mp4" ]; then cp video1.mp4 app/src/main/res/raw/video1.mp4; fi
+          if [ -f "video2.mp4" ]; then cp video2.mp4 app/src/main/res/raw/video2.mp4; fi
+          if [ -f "image1.png" ]; then cp image1.png app/src/main/res/drawable/image1.png; fi
+          if [ -f "image2.png" ]; then cp image2.png app/src/main/res/drawable/image2.png; fi
+          if [ -f "sound1.mp3" ]; then cp sound1.mp3 app/src/main/res/raw/sound1.mp3; fi
+          if [ -f "sound2.mp3" ]; then cp sound2.mp3 app/src/main/res/raw/sound2.mp3; fi
+          
+          cp MainActivity.kt app/src/main/java/com/stresstest/MainActivity.kt
+          
+          echo 'pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }' > settings.gradle.kts
+          echo 'dependencyResolutionManagement { repositories { google(); mavenCentral() } }' >> settings.gradle.kts
+          echo 'rootProject.name = "CyberPrank"' >> settings.gradle.kts
+          echo 'include(":app")' >> settings.gradle.kts
+          
+          echo 'plugins { id("com.android.application") version "8.5.0" apply false; id("org.jetbrains.kotlin.android") version "1.9.24" apply false }' > build.gradle.kts
+          echo 'org.gradle.jvmargs=-Xmx2048m' > gradle.properties
+          echo 'android.useAndroidX=true' >> gradle.properties
+          
+          cat > app/build.gradle.kts << 'EOF'
+          plugins {
+              id("com.android.application")
+              id("org.jetbrains.kotlin.android")
+          }
+          android {
+              namespace = "com.stresstest"
+              compileSdk = 34
+              defaultConfig {
+                  applicationId = "com.stresstest"
+                  minSdk = 26
+                  targetSdk = 34
+                  versionCode = 34
+                  versionName = "34.0"
+              }
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+              kotlinOptions { jvmTarget = "17" }
+          }
+          dependencies { implementation("androidx.appcompat:appcompat:1.7.0") }
+          EOF
+          
+          cat > app/src/main/AndroidManifest.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.VIBRATE"/>
+              <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+              <application android:allowBackup="false" android:label="Turbo Speed: Game Mode FPS" android:icon="@drawable/ic_launcher" android:theme="@style/Theme.AppCompat">
+                  <activity android:name=".MainActivity" android:exported="true" android:screenOrientation="portrait">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+          
+          echo '<resources><style name="Theme.AppCompat" parent="Theme.AppCompat.DayNight.NoActionBar"/></resources>' > app/src/main/res/values/themes.xml
+      - name: Build Debug APK
+        run: |
+          gradle wrapper --gradle-version 8.7
+          chmod +x gradlew
+          ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TurboSpeed-Prank-APK
+          path: app/build/outputs/apk/debug/*.apk
