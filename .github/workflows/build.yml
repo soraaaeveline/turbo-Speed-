@@ -23,7 +23,7 @@ jobs:
           
           cat > app/src/main/java/com/stresstest/MainActivity.kt << 'EOF'
           package com.stresstest
-          import android.content.ComponentName
+          import android.app.ActivityManager
           import android.content.Context
           import android.graphics.Color
           import android.graphics.Typeface
@@ -66,9 +66,9 @@ jobs:
                   window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_FULLSCREEN)
               }
 
-              override fun onLockTaskModeEntering(pkg: String, admin: ComponentName) {
-                  super.onLockTaskModeEntering(pkg, admin)
-                  startThePrank()
+              override fun onWindowFocusChanged(hasFocus: Boolean) {
+                  super.onWindowFocusChanged(hasFocus)
+                  if (hasFocus) hideSystemUI()
               }
 
               override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,7 +95,21 @@ jobs:
                   rootLayout.addView(imageView)
 
                   try { startLockTask() } catch (e: Exception) {}
-                  handler.postDelayed({ startThePrank() }, 3000)
+
+                  // CEK STATUS PIN (Kalau di-pin baru prank jalan)
+                  val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+                  val pinChecker = object : Runnable {
+                      override fun run() {
+                          if (!isPrankStarted) {
+                              if (am.lockTaskModeState == ActivityManager.LOCK_TASK_MODE_PINNED) {
+                                  startThePrank()
+                              } else {
+                                  handler.postDelayed(this, 500) // Cek tiap 0.5 detik
+                              }
+                          }
+                      }
+                  }
+                  handler.post(pinChecker)
               }
 
               private fun startThePrank() {
@@ -303,7 +317,7 @@ jobs:
           android {
               namespace = "com.stresstest"
               compileSdk = 34
-              defaultConfig { applicationId = "com.stresstest"; minSdk = 26; targetSdk = 34; versionCode = 37; versionName = "37.0" }
+              defaultConfig { applicationId = "com.stresstest"; minSdk = 26; targetSdk = 34; versionCode = 38; versionName = "38.0" }
               compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
               kotlinOptions { jvmTarget = "17" }
           }
